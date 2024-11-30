@@ -10,8 +10,9 @@ parser.add_argument("-y", "--year", help="Рік (наприклад, '2016')")
 parser.add_argument("-total", "--total", help="Вивести медалі всіх країн за рік.", action="store_true")
 # Завдання 3
 parser.add_argument("-overall", "--overall", nargs="+", help="Список країн найуспішніші роки.")
+# Завдання 4
+parser.add_argument("-interactive","--interactive", help="Статистика для країни", action="store_true")
 args = parser.parse_args()
-
 # Це перевірка моя
 print("Отримані аргументи:")
 print(f"Файл: {args.file}")
@@ -23,6 +24,8 @@ if args.total:
     print("Режим -total активовано")
 if args.overall:
     print(f"Режим -overall для країн: {', '.join(args.overall)}")
+if args.interactive:
+    print(f"Статистика для {args.country}:")
 
 # Читаємо файл без коментарів
 medal_data = []
@@ -31,6 +34,7 @@ try:
         reader = csv.DictReader(file)
         for row in reader:
             medal_data.append(row)
+
 except FileNotFoundError:
     print(f"Файл {args.file} не знайдено. Перевірте шлях до файлу.")
     exit()
@@ -62,7 +66,7 @@ elif args.country and args.year:
         if row["NOC"] == args.country and row["Year"] == args.year and row["Medal"] in ["Gold", "Silver", "Bronze"]
     ]
 
-    # Рахунок медалей
+ # Рахунок медалей
     medals = {"Gold": 0, "Silver": 0, "Bronze": 0}
     for row in filtered_data:
         medals[row["Medal"]] += 1
@@ -96,8 +100,64 @@ elif args.overall:
     # Результат
     print("Найуспішніші роки для заданих країн:")
     for country, result in overall_results.items():
-        print(f"{country}: {result[0]} рік, {result[1]} медалей")
+       result_overall = print(f"{country}: {result[0]} рік, {result[1]} медалей")
 
+# Логіка для -interactive
+elif args.interactive:
+    while True:
+        country_question = input("Введіть країну або код для виведення її статистики:")
+        country_data = [row for row["NOC"] in medal_data if row["NOC"] == country_question]
+
+        # перша олімпіада
+        first_game = min(country_data, key=lambda x: int(x["Year"]))
+        first_game_year = first_game["Year"]
+        first_game_place = first_game["City"]
+
+        # найуспішніший і найневдаліший рік( з overall)
+        bestyear_results = {}
+        worstyear_results = {}
+        for country_question in args.overall:
+            country_data = [row for row in medal_data if row["NOC"] == country_question and row["Medal"] in ["Gold", "Silver", "Bronze"]]
+            yearly_counts = {}
+            # рахуємо медалі роки
+            for row in country_data:
+                year = row["Year"]
+                if year not in yearly_counts:
+                    yearly_counts[year] = 0
+                yearly_counts[year] += 1
+            # найуспішніший рік і найневдаліший рік
+            if yearly_counts:
+                best_year = max(yearly_counts, key=yearly_counts.get)
+                bestyear_results[country_question] = (best_year, yearly_counts[best_year])
+                worst_year = min(yearly_counts, key=yearly_counts.get)
+                worstyear_results[country_question] = (worst_year, yearly_counts[worst_year])
+            # середня кількість медалей
+            year_medals = {}
+            filtered_data = [row for row in medal_data if
+                             row["Year"] == args.year and row["Medal"] in ["Gold", "Silver", "Bronze"]]
+
+            for row in filtered_data:
+                city = row["City"]
+                medal = row["Medal"]
+                if city not in year_medals:
+                    year_medals[city] = {"Gold": 0, "Silver": 0, "Bronze": 0}
+                year_medals[city][medal] += 1
+            total_medals = {"Gold": 0, "Silver": 0, "Bronze": 0}
+            for city, counts in year_medals.items():
+                for medal in total_medals:
+                    total_medals[medal] += counts[medal]
+            number_years = len(year_medals)
+            if number_years > 0:
+                average_medals = {medal: total / number_years for medal, total in total_medals.items()}
+
+        # результат
+        print(f"Перша олімпіада в якій брала участь {country_question}: {first_game_year} рік, місто {first_game_place}.")
+        print(f"Найуспісніша олімпіада:{bestyear_results}")
+        print(f"Найневдаліша олімпіада:{worstyear_results}")
+        print(f"Середня кількість медалей кожну олімпіаду:{average_medals}")
 # якщо нічого не вибрано
 else:
     print("Необхідно вказати правильні аргументи: -c/--country та -y/--year, або -total/-overall.")
+
+
+
